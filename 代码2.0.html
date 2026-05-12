@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>灵魂原型测试</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d0d0d;
+            --bg-elevated: #1a1610;
+            --bg-card: rgba(26, 22, 18, 0.88);
+            --bg-option: rgba(255, 255, 255, 0.04);
+            --bg-option-hover: rgba(232, 145, 90, 0.1);
+            --bg-option-selected: rgba(232, 145, 90, 0.18);
+            --accent: #e8915a;
+            --accent-light: #f0a872;
+            --accent-dark: #c07040;
+            --accent-glow: rgba(232, 145, 90, 0.25);
+            --fg: #f5f0eb;
+            --fg-secondary: #c4b8aa;
+            --muted: #7a7068;
+            --border: rgba(255, 255, 255, 0.08);
+            --border-accent: rgba(232, 145, 90, 0.3);
+            --success: #5cb88a;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --radius-xs: 6px;
+            --shadow: 0 8px 32px rgba(0,0,0,0.4);
+            --shadow-accent: 0 4px 24px rgba(232, 145, 90, 0.2);
+            --font-display: 'Noto Serif SC', serif;
+            --font-ui: 'Noto Sans SC', sans-serif;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:var(--font-ui);background:var(--bg);color:var(--fg);min-height:100vh;overflow-x:hidden;position:relative;}
+        
+        body::before, body::after {
+            content: '';
+            position: fixed;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(80px);
+        }
+        body::before {
+            top: -15%;
+            left: -10%;
+            width: 45vw;
+            height: 45vw;
+            background: radial-gradient(circle, rgba(232,145,90,0.07) 0%, transparent 70%);
+        }
+        body::after {
+            bottom: -20%;
+            right: -15%;
+            width: 50vw;
+            height: 50vw;
+            background: radial-gradient(circle, rgba(92,184,138,0.05) 0%, transparent 70%);
+        }
+
+        #particle-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;}
+        main{position:relative;z-index:1;min-height:100vh;}
+        .view{position:absolute;top:0;left:0;width:100%;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;opacity:0;transform:translateY(24px);transition:opacity .55s ease,transform .55s ease;pointer-events:none;visibility:hidden;}
+        .view.active{opacity:1;transform:translateY(0);pointer-events:auto;visibility:visible;}
+        
+        .cover-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;opacity:.25;z-index:-1;transition:opacity .6s;}
+        .cover-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 18px;background:var(--bg-option);border:1px solid var(--border);border-radius:100px;font-size:13px;color:var(--muted);margin-bottom:36px;backdrop-filter:blur(10px);}
+        .cover-badge i{color:var(--accent);font-size:11px;}
+        .cover-title{font-family:var(--font-display);font-weight:900;font-size:clamp(38px,9vw,76px);line-height:1.12;letter-spacing:-.02em;margin-bottom:20px;background:linear-gradient(135deg,var(--fg) 0%,var(--accent-light) 50%,var(--accent) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:titleReveal 1s ease forwards;}
+        @keyframes titleReveal{from{opacity:0;transform:translateY(30px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+        .cover-subtitle{font-weight:300;font-size:clamp(16px,3vw,20px);color:var(--fg-secondary);max-width:480px;margin:0 auto 52px;line-height:1.75;text-align:center;animation:fadeUp .8s .25s ease both;}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+        .btn-start{position:relative;display:inline-flex;align-items:center;gap:10px;padding:18px 52px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#0d0d0d;font-family:var(--font-ui);font-weight:700;font-size:18px;border:none;border-radius:100px;cursor:pointer;transition:all .3s ease;box-shadow:var(--shadow-accent);animation:fadeUp .8s .45s ease both;}
+        .btn-start::before{content:'';position:absolute;inset:-4px;border-radius:100px;background:linear-gradient(135deg,var(--accent),var(--accent-dark));opacity:0;filter:blur(14px);transition:opacity .3s;z-index:-1;}
+        .btn-start:hover{transform:translateY(-3px);box-shadow:0 8px 36px rgba(232,145,90,.4);}
+        .btn-start:hover::before{opacity:.5;}
+        .btn-start:active{transform:translateY(-1px) scale(0.98);}
+        .cover-meta{margin-top:28px;font-size:13px;color:var(--muted);animation:fadeUp .8s .6s ease both;}
+        
+        /* 优化：创作者信息样式 */
+        .cover-author{margin-top:12px;font-size:12px;color:var(--muted);opacity:0.6;animation:fadeUp .8s .75s ease both;letter-spacing:0.05em;}
+        .cover-author span{color:var(--accent-light);font-weight:500;}
+
+        #quiz-view{justify-content:flex-start;padding-top:60px;}
+        .quiz-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;opacity:.12;z-index:-1;transition:opacity .6s;}
+        .progress-area{width:100%;max-width:620px;margin-bottom:44px;}
+        .progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+        .progress-label{font-size:13px;color:var(--muted);}
+        .progress-count{font-size:14px;font-weight:600;color:var(--accent);}
+        .progress-bar-track{width:100%;height:4px;background:var(--bg-option);border-radius:100px;overflow:visible;position:relative;}
+        .progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent-dark),var(--accent),var(--accent-light));border-radius:100px;transition:width .5s cubic-bezier(.4,0,.2,1);position:relative;}
+        .progress-bar-fill::after{content:'';position:absolute;right:-6px;top:50%;transform:translateY(-50%);width:14px;height:14px;background:var(--accent);border-radius:50%;box-shadow:0 0 14px var(--accent-glow),0 0 4px var(--accent);transition:opacity .3s;}
+        .question-area{width:100%;max-width:620px;text-align:center;position:relative;}
+        .question-image{width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius);margin-bottom:28px;border:1px solid var(--border);}
+        .question-text{font-family:var(--font-display);font-weight:700;font-size:clamp(21px,4.5vw,30px);line-height:1.55;margin-bottom:38px;color:var(--fg);transition:opacity .35s,transform .35s;}
+        .question-text.switching{opacity:0;transform:translateY(12px);}
+        .options-list{display:flex;flex-direction:column;gap:12px;width:100%;transition:opacity .35s;}
+        .options-list.switching{opacity:0;}
+        .option-btn{display:flex;align-items:center;gap:16px;width:100%;padding:16px 22px;background:var(--bg-option);border:1px solid var(--border);border-radius:var(--radius);color:var(--fg);font-family:var(--font-ui);font-size:15px;font-weight:400;text-align:left;cursor:pointer;transition:all .25s ease;backdrop-filter:blur(8px);position:relative;overflow:hidden;}
+        .option-btn:hover{background:var(--bg-option-hover);border-color:var(--border-accent);transform:translateX(4px);}
+        .option-btn:active{transform:scale(0.98) translateX(2px);background:var(--bg-option-selected);}
+        .option-btn.selected{background:var(--bg-option-selected);border-color:var(--accent);box-shadow:0 0 20px rgba(232,145,90,.12);}
+        .option-letter{flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:9px;font-weight:700;font-size:13px;color:var(--muted);transition:all .25s;}
+        .option-btn.selected .option-letter{background:var(--accent);color:#0d0d0d;}
+        .option-text{flex:1;line-height:1.5;}
+        .option-check{opacity:0;color:var(--accent);transition:opacity .25s;font-size:14px;}
+        .option-btn.selected .option-check{opacity:1;}
+        .quiz-nav{display:flex;gap:12px;margin-top:36px;width:100%;max-width:620px;}
+        .btn-nav{flex:1;padding:14px 24px;border-radius:var(--radius-sm);font-family:var(--font-ui);font-weight:500;font-size:15px;cursor:pointer;transition:all .25s;border:none;}
+        .btn-prev{background:var(--bg-option);border:1px solid var(--border);color:var(--fg-secondary);}
+        .btn-prev:hover{background:var(--bg-option-hover);border-color:var(--border-accent);}
+        .btn-next{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#0d0d0d;font-weight:700;}
+        .btn-next:hover{box-shadow:var(--shadow-accent);transform:translateY(-1px);}
+        .btn-next:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+        .btn-submit{background:linear-gradient(135deg,var(--success),#3d9970);color:#fff;}
+        .btn-submit:hover{box-shadow:0 4px 20px rgba(92,184,138,.3);transform:translateY(-1px);}
+        .btn-submit:disabled{opacity:.35;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+        
+        .result-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-size:cover;background-position:center;opacity:.18;z-index:-1;transition:opacity .6s;}
+        .result-label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.18em;margin-bottom:16px;animation:fadeUp .7s .1s ease both;}
+        .result-type{font-family:var(--font-display);font-weight:900;font-size:clamp(42px,11vw,84px);background:linear-gradient(135deg,var(--accent-light),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;line-height:1.15;animation:fadeUp .7s .2s ease both;}
+        .result-score-line{font-size:16px;color:var(--fg-secondary);margin-bottom:28px;animation:fadeUp .7s .3s ease both;}
+        .result-score-line span{color:var(--accent);font-weight:700;}
+        .result-image{width:180px;height:180px;border-radius:50%;object-fit:cover;border:3px solid var(--border-accent);margin-bottom:28px;box-shadow:var(--shadow-accent);animation:fadeUp .7s .35s ease both;}
+        .result-card{max-width:540px;padding:32px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);backdrop-filter:blur(20px);margin-bottom:36px;text-align:left;animation:fadeUp .7s .45s ease both;}
+        .result-card-title{font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:12px;color:var(--accent-light);}
+        .result-desc{font-size:15px;line-height:1.85;color:var(--fg-secondary);}
+        .result-traits{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+        .trait-tag{padding:6px 14px;background:var(--bg-option-selected);border:1px solid var(--border-accent);border-radius:100px;font-size:12px;color:var(--accent-light);font-weight:500;}
+        .btn-restart{display:inline-flex;align-items:center;gap:8px;padding:14px 38px;background:transparent;border:1px solid var(--border-accent);border-radius:100px;color:var(--accent);font-family:var(--font-ui);font-weight:500;font-size:15px;cursor:pointer;transition:all .25s;animation:fadeUp .7s .6s ease both;}
+        .btn-restart:hover{background:var(--bg-option-selected);box-shadow:var(--shadow-accent);}
+        
+        .edit-toggle{position:fixed;top:20px;right:20px;z-index:1001;width:44px;height:44px;border-radius:12px;background:var(--bg-card);border:1px solid var(--border);color:var(--muted);font-size:17px;cursor:pointer;transition:all .25s;backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;}
+        .edit-toggle:hover{color:var(--accent);border-color:var(--border-accent);}
+        .edit-toggle.active{color:var(--accent);background:var(--bg-option-selected);}
+        
+        #edit-panel{position:fixed;top:0;right:0;width:400px;height:100vh;background:var(--bg-elevated);border-left:1px solid var(--border);z-index:1000;transform:translateX(100%);transition:transform .4s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;overflow:hidden;}
+        #edit-panel.open{transform:translateX(0);}
+        .edit-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+        .edit-title{font-family:var(--font-display);font-weight:700;font-size:17px;}
+        .edit-close{background:none;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:4px;transition:color .2s;}
+        .edit-close:hover{color:var(--fg);}
+        .edit-tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+        .edit-tab{flex:1;padding:11px 8px;text-align:center;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border:none;border-bottom:2px solid transparent;background:none;transition:all .2s;}
+        .edit-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+        .edit-tab:hover{color:var(--fg-secondary);}
+        .edit-content{flex:1;overflow-y:auto;padding:22px;}
+        .edit-content::-webkit-scrollbar{width:4px;}
+        .edit-content::-webkit-scrollbar-thumb{background:var(--border);border-radius:100px;}
+        
+        /* 优化：底部操作栏样式 */
+        .edit-footer{padding:16px 22px;border-top:1px solid var(--border);background:var(--bg-elevated);display:flex;flex-direction:column;gap:10px;flex-shrink:0;}
+        .btn-action{width:100%;padding:12px;border-radius:var(--radius-sm);font-family:var(--font-ui);font-weight:600;font-size:13px;cursor:pointer;transition:all .25s;border:none;display:flex;align-items:center;justify-content:center;gap:8px;}
+        .btn-save{background:linear-gradient(135deg,var(--accent),var(--accent-dark));color:#0d0d0d;}
+        .btn-save:hover{box-shadow:var(--shadow-accent);transform:translateY(-1px);}
+        .btn-link{background:var(--bg-option);border:1px solid var(--border);color:var(--fg-secondary);}
+        .btn-link:hover{border-color:var(--border-accent);color:var(--accent);}
+
+        .form-group{margin-bottom:18px;}
+        .form-label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.1em;}
+        .form-input{width:100%;padding:9px 12px;background:var(--bg-option);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--fg);font-family:var(--font-ui);font-size:13px;transition:border-color .2s;outline:none;}
+        .form-input:focus{border-color:var(--accent);}
+        textarea.form-input{resize:vertical;min-height:70px;line-height:1.6;}
+        .form-select{width:100%;padding:9px 12px;background:var(--bg-option);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--fg);font-family:var(--font-ui);font-size:13px;outline:none;cursor:pointer;}
+        .form-select:focus{border-color:var(--accent);}
+        .form-select option{background:var(--bg-elevated);color:var(--fg);}
+        .form-file-label{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:var(--bg-option);border:1px dashed var(--border);border-radius:var(--radius-xs);color:var(--muted);font-size:12px;cursor:pointer;transition:all .2s;}
+        .form-file-label:hover{border-color:var(--accent);color:var(--accent);}
+        .form-file-label.has-image{border-color:var(--success);color:var(--success);}
+        .form-file-input{display:none;}
+        .image-preview{width:100%;max-height:100px;object-fit:cover;border-radius:var(--radius-xs);margin-top:6px;border:1px solid var(--border);}
+        .option-edit-row{display:grid;grid-template-columns:1fr 64px;gap:6px;align-items:center;margin-bottom:6px;}
+        .option-edit-row .form-input{font-size:12px;padding:7px 10px;}
+        .option-edit-label{font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+        .option-edit-label .letter{width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border-radius:5px;font-size:10px;font-weight:700;color:var(--accent);}
+        .divider{border:none;border-top:1px solid var(--border);margin:18px 0;}
+        .score-range-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+        
+        /* 链接分享弹窗 */
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2002;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:opacity .3s;}
+        .modal-overlay.show{opacity:1;pointer-events:auto;}
+        .modal-box{width:90%;max-width:500px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:var(--radius);padding:28px;transform:translateY(20px);transition:transform .3s;}
+        .modal-overlay.show .modal-box{transform:translateY(0);}
+        .modal-title{font-family:var(--font-display);font-weight:700;font-size:18px;margin-bottom:8px;}
+        .modal-desc{font-size:13px;color:var(--fg-secondary);margin-bottom:20px;line-height:1.6;}
+        .modal-link-box{width:100%;padding:12px;background:var(--bg-option);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--accent-light);font-size:11px;word-break:break-all;max-height:120px;overflow-y:auto;margin-bottom:16px;font-family:monospace;}
+        .modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+        .btn-modal{padding:10px 20px;border-radius:var(--radius-xs);font-family:var(--font-ui);font-weight:600;font-size:13px;cursor:pointer;transition:all .25s;border:none;}
+        .btn-copy{background:var(--accent);color:#0d0d0d;}
+        .btn-copy:hover{box-shadow:var(--shadow-accent);}
+        .btn-modal-close{background:var(--bg-option);color:var(--fg-secondary);border:1px solid var(--border);}
+        .btn-modal-close:hover{border-color:var(--border-accent);}
+
+        .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(80px);padding:12px 26px;background:var(--bg-card);border:1px solid var(--border-accent);border-radius:var(--radius-sm);color:var(--fg);font-size:14px;z-index:2003;backdrop-filter:blur(14px);transition:transform .4s cubic-bezier(.4,0,.2,1);pointer-events:none;white-space:nowrap;}
+        .toast.show{transform:translateX(-50%) translateY(0);}
+        
+        @media(max-width:768px){
+            #edit-panel{width:100%;}
+            .quiz-nav{flex-direction:column;}
+            .result-image{width:140px;height:140px;}
+            .cover-title{font-size:clamp(32px,8vw,56px);}
+        }
+        @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;}}
+        ::-webkit-scrollbar{width:6px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:var(--border);border-radius:100px;}
+    </style>
+</head>
+<body>
+    <canvas id="particle-canvas"></canvas>
+    <main>
+        <!-- 封面页 -->
+        <section id="cover-view" class="view active" role="region" aria-label="测试封面">
+            <div class="cover-bg" id="cover-bg"></div>
+            <div class="cover-badge"><i class="fas fa-fingerprint"></i><span>人格探索测试</span></div>
+            <h1 class="cover-title" id="cover-title"></h1>
+            <p class="cover-subtitle" id="cover-subtitle"></p>
+            <button class="btn-start" id="btn-start" aria-label="开始测试"><i class="fas fa-play" style="font-size:14px;"></i>开始测试</button>
+            <p class="cover-meta">共 10 题 · 约 2 分钟</p>
+            <!-- 新增：创作者信息 -->
+            <p class="cover-author">创作者：<span>mario</span></p>
+        </section>
+        
+        <!-- 答题页 -->
+        <section id="quiz-view" class="view" role="region" aria-label="答题区域">
+            <div class="quiz-bg" id="quiz-bg"></div>
+            <div class="progress-area">
+                <div class="progress-header">
+                    <span class="progress-label">答题进度</span>
+                    <span class="progress-count" id="progress-count"></span>
+                </div>
+                <div class="progress-bar-track">
+                    <div class="progress-bar-fill" id="progress-fill" style="width:0%"></div>
+                </div>
+            </div>
+            <div class="question-area">
+                <img class="question-image" id="question-image" style="display:none;" alt="题目配图">
+                <h2 class="question-text" id="question-text"></h2>
+                <div class="options-list" id="options-list" role="radiogroup"></div>
+            </div>
+            <nav class="quiz-nav" id="quiz-nav"></nav>
+        </section>
+        
+        <!-- 结果页 -->
+        <section id="result-view" class="view" role="region" aria-label="测试结果">
+            <div class="result-bg" id="result-bg"></div>
+            <p class="result-label">你的灵魂原型</p>
+            <h2 class="result-type" id="result-type"></h2>
+            <p class="result-score-line" id="result-score-line"></p>
+            <img class="result-image" id="result-image" style="display:none;" alt="结果配图">
+            <div class="result-card">
+                <p class="result-card-title" id="result-card-title"></p>
+                <p class="result-desc" id="result-desc"></p>
+                <div class="result-traits" id="result-traits"></div>
+            </div>
+            <button class="btn-restart" id="btn-restart"><i class="fas fa-redo" style="font-size:13px;"></i>重新测试</button>
+        </section>
+    </main>
+    
+    <button class="edit-toggle" id="edit-toggle" aria-label="打开编辑面板" title="编辑内容"><i class="fas fa-sliders-h"></i></button>
+    
+    <aside id="edit-panel" role="complementary" aria-label="编辑面板">
+        <div class="edit-header">
+            <span class="edit-title">内容编辑</span>
+            <button class="edit-close" id="edit-close" aria-label="关闭"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="edit-tabs" role="tablist">
+            <button class="edit-tab active" data-tab="cover" role="tab">封面</button>
+            <button class="edit-tab" data-tab="questions" role="tab">题目</button>
+            <button class="edit-tab" data-tab="results" role="tab">结果</button>
+        </div>
+        <div class="edit-content" id="edit-content"></div>
+        <!-- 新增：底部操作栏 -->
+        <div class="edit-footer">
+            <button class="btn-action btn-save" id="btn-save-html"><i class="fas fa-download"></i> 保存为HTML文件</button>
+            <button class="btn-action btn-link" id="btn-gen-link"><i class="fas fa-link"></i> 生成网页链接</button>
+        </div>
+    </aside>
+    
+    <!-- 链接分享弹窗 -->
+    <div class="modal-overlay" id="link-modal">
+        <div class="modal-box">
+            <h3 class="modal-title">网页链接已生成</h3>
+            <p class="modal-desc">复制下方链接，可在浏览器中直接打开。如果链接过长，建议使用 CodePen 等在线代码平台粘贴代码获取短链接。</p>
+            <div class="modal-link-box" id="link-text"></div>
+            <div class="modal-actions">
+                <button class="btn-modal btn-modal-close" id="btn-modal-close">关闭</button>
+                <button class="btn-modal btn-copy" id="btn-copy-link"><i class="fas fa-copy"></i> 复制链接</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    /* <!-- QUIZ_DATA_START --> */
+    const quizData = {
+        cover: {
+            title: '发现你的灵魂原型',
+            subtitle: '十道精选题目，探索你内心深处的人格密码，找到属于你的原型',
+            bgImage: null
+        },
+        questions: [
+            {
+                text: '周末早晨醒来，你的第一反应是？',
+                image: null,
+                options: [
+                    { text: '规划今天的完整行程', score: 1 },
+                    { text: '翻个身继续享受被窝', score: 2 },
+                    { text: '拿手机刷社交动态', score: 3 },
+                    { text: '立刻起身找点乐子', score: 4 }
+                ]
+            },
+            {
+                text: '面对一个从未遇过的挑战，你会？',
+                image: null,
+                options: [
+                    { text: '系统分析利弊再决定', score: 1 },
+                    { text: '先向有经验的人请教', score: 2 },
+                    { text: '搜索各种案例做参考', score: 3 },
+                    { text: '二话不说直接冲上去', score: 4 }
+                ]
+            },
+            {
+                text: '在社交聚会上，你通常……',
+                image: null,
+                options: [
+                    { text: '安静观察全场动态', score: 1 },
+                    { text: '和几个熟人深入聊天', score: 2 },
+                    { text: '主动认识新朋友', score: 3 },
+                    { text: '成为全场焦点人物', score: 4 }
+                ]
+            },
+            {
+                text: '做重要决定时，你更依赖？',
+                image: null,
+                options: [
+                    { text: '逻辑推理和数据', score: 1 },
+                    { text: '过往的经验教训', score: 2 },
+                    { text: '直觉和第六感', score: 3 },
+                    { text: '内心的声音和冲动', score: 4 }
+                ]
+            },
+            {
+                text: '你理想的旅行方式是？',
+                image: null,
+                options: [
+                    { text: '详细攻略精确到小时', score: 1 },
+                    { text: '定好大方向随性调整', score: 2 },
+                    { text: '跟着当地人走小众路线', score: 3 },
+                    { text: '说走就走不做计划', score: 4 }
+                ]
+            },
+            {
+                text: '深夜独处时，你更可能……',
+                image: null,
+                options: [
+                    { text: '复盘今天的得失', score: 1 },
+                    { text: '翻看老照片回忆过去', score: 2 },
+                    { text: '沉浸在书籍或电影中', score: 3 },
+                    { text: '突然出门散步吹风', score: 4 }
+                ]
+            },
+            {
+                text: '朋友向你倾诉烦恼，你会？',
+                image: null,
+                options: [
+                    { text: '帮ta理性分析解决方案', score: 1 },
+                    { text: '默默陪伴倾听', score: 2 },
+                    { text: '分享自己类似的经历', score: 3 },
+                    { text: '直接拉着ta去散心', score: 4 }
+                ]
+            },
+            {
+                text: '你对"规则"的态度是？',
+                image: null,
+                options: [
+                    { text: '规则是效率和秩序的保障', score: 1 },
+                    { text: '尊重规则但允许例外', score: 2 },
+                    { text: '规则之外总有有趣的可能性', score: 3 },
+                    { text: '规则就是用来打破的', score: 4 }
+                ]
+            },
+            {
+                text: '如果能拥有一种超能力，你选？',
+                image: null,
+                options: [
+                    { text: '时间静止 — 从容思考', score: 1 },
+                    { text: '读心术 — 看透人心', score: 2 },
+                    { text: '任意门 — 瞬间移动', score: 3 },
+                    { text: '无限精力 — 永不疲倦', score: 4 }
+                ]
+            },
+            {
+                text: '看到一幅抽象画，你的反应是？',
+                image: null,
+                options: [
+                    { text: '分析构图和色彩规律', score: 1 },
+                    { text: '感受画面传递的情绪', score: 2 },
+                    { text: '联想它可能的故事', score: 3 },
+                    { text: '想自己也画一幅更疯的', score: 4 }
+                ]
+            }
+        ],
+        results: [
+            {
+                minScore: 10, maxScore: 17,
+                title: '沉思者',
+                subtitle: '理性与深度的守护者',
+                description: '你拥有超乎常人的深度思考能力，面对复杂问题总能抽丝剥茧找到核心。你相信逻辑的力量，习惯在行动之前充分分析。你的内心世界如同一座精密的钟表，每个齿轮都在深思熟虑后才会转动。在你的世界里，智慧不是速度，而是深度。',
+                traits: ['深度思考', '逻辑缜密', '独立判断', '追求真理'],
+                image: null
+            },
+            {
+                minScore: 18, maxScore: 24,
+                title: '守护者',
+                subtitle: '温暖与坚定的守望者',
+                description: '你是人群中最可靠的存在，你的温暖不是喧嚣的火焰，而是持久的炉火。你重视传统和经验，善于在变化中找到稳定的支点。你的同理心让你成为朋友最信赖的倾诉对象，你的坚定让团队在风雨中依然前行。你是值得托付的灵魂。',
+                traits: ['温暖可靠', '善于倾听', '重视承诺', '稳健前行'],
+                image: null
+            },
+            {
+                minScore: 25, maxScore: 31,
+                title: '创造者',
+                subtitle: '灵感与想象的编织者',
+                description: '你的大脑是一台永不停歇的创意引擎，世界在你眼中永远充满未被发现的可能。你善于从平凡中提炼诗意，从混沌中构建秩序。你不满足于已有的答案，总是在追问"如果呢？"你的存在让周围的世界变得更加丰富和有趣。',
+                traits: ['想象力丰富', '灵感涌现', '不拘一格', '诗意生活'],
+                image: null
+            },
+            {
+                minScore: 32, maxScore: 40,
+                title: '冒险王',
+                subtitle: '勇气与行动的化身',
+                description: '你天生就是破局者，挑战是你呼吸的空气，未知是你前进的方向。你不怕失败，因为每次跌倒都是下一次起飞的弹射器。你的能量具有感染力，你的果断在犹豫者心中点燃火花。你用行动证明：人生最大的风险，就是从不冒险。',
+                traits: ['勇往直前', '行动果断', '感染力强', '拥抱未知'],
+                image: null
+            }
+        ],
+        quizBgImage: null
+    };
+    /* <!-- QUIZ_DATA_END --> */
+
+    let currentView = 'cover';
+    let currentQuestion = 0;
+    let answers = new Array(10).fill(-1);
+    let editOpen = false;
+    let editTab = 'cover';
+    let editQuestionIdx = 0;
+    let editResultIdx = 0;
+    let autoNextTimer = null;
+    let mouseX = 0, mouseY = 0;
+
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => document.querySelectorAll(sel);
+    const letters = ['A', 'B', 'C', 'D'];
+
+    function showToast(msg) {
+        const t = $('#toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function initParticles() {
+        const canvas = $('#particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let w, h, particles = [];
+        function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+        resize();
+        window.addEventListener('resize', resize);
+        document.addEventListener('mousemove', (e) => { mouseX = (e.clientX / w - 0.5) * 2; mouseY = (e.clientY / h - 0.5) * 2; });
+        const count = Math.min(70, Math.floor(w * h / 18000));
+        for (let i = 0; i < count; i++) {
+            particles.push({ x: Math.random() * w, y: Math.random() * h, r: Math.random() * 2 + 0.5, vx: (Math.random() - 0.5) * 0.3, vy: (Math.random() - 0.5) * 0.3, alpha: Math.random() * 0.5 + 0.15, pulse: Math.random() * Math.PI * 2, pulseSpeed: Math.random() * 0.02 + 0.005, depth: Math.random() * 0.5 + 0.5 });
+        }
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+            for (const p of particles) {
+                p.x += p.vx - mouseX * 0.15 * p.depth; p.y += p.vy - mouseY * 0.15 * p.depth; p.pulse += p.pulseSpeed;
+                if (p.x < -10) p.x = w + 10; if (p.x > w + 10) p.x = -10; if (p.y < -10) p.y = h + 10; if (p.y > h + 10) p.y = -10;
+                const a = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse)); const r = Math.max(0.3, p.r);
+                ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fillStyle = `rgba(232,145,90,${a})`; ctx.fill();
+                if (r > 1.2) { ctx.beginPath(); ctx.arc(p.x, p.y, r * 3, 0, Math.PI * 2); ctx.fillStyle = `rgba(232,145,90,${a * 0.12})`; ctx.fill(); }
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+    }
+
+    function showView(name) { $$('.view').forEach(v => v.classList.remove('active')); $(`#${name}-view`).classList.add('active'); currentView = name; }
+
+    function renderCover() {
+        $('#cover-title').textContent = quizData.cover.title;
+        $('#cover-subtitle').textContent = quizData.cover.subtitle;
+        const bg = $('#cover-bg');
+        if (quizData.cover.bgImage) { bg.style.backgroundImage = `url(${quizData.cover.bgImage})`; bg.style.opacity = '0.3'; } else { bg.style.backgroundImage = 'none'; }
+    }
+
+    function renderQuiz() {
+        const q = quizData.questions[currentQuestion];
+        const bg = $('#quiz-bg');
+        if (quizData.quizBgImage) { bg.style.backgroundImage = `url(${quizData.quizBgImage})`; } else { bg.style.backgroundImage = 'none'; }
+        $('#progress-count').textContent = `${currentQuestion + 1} / ${quizData.questions.length}`;
+        $('#progress-fill').style.width = ((currentQuestion + 1) / quizData.questions.length * 100) + '%';
+        const qImg = $('#question-image');
+        if (q.image) { qImg.src = q.image; qImg.style.display = 'block'; } else { qImg.style.display = 'none'; }
+        const qText = $('#question-text'); qText.classList.add('switching');
+        setTimeout(() => { qText.textContent = q.text; qText.classList.remove('switching'); }, 180);
+        const optList = $('#options-list'); optList.classList.add('switching');
+        setTimeout(() => {
+            optList.innerHTML = q.options.map((opt, i) => `
+                <button class="option-btn${answers[currentQuestion] === i ? ' selected' : ''}" data-index="${i}" role="radio" aria-checked="${answers[currentQuestion] === i}" aria-label="选项${letters[i]}: ${opt.text}">
+                    <span class="option-letter">${letters[i]}</span><span class="option-text">${opt.text}</span><i class="fas fa-check option-check"></i>
+                </button>`).join('');
+            optList.classList.remove('switching');
+            optList.querySelectorAll('.option-btn').forEach(btn => { btn.addEventListener('click', () => { selectOption(parseInt(btn.dataset.index)); }); });
+        }, 200);
+        renderQuizNav();
+    }
+
+    function renderQuizNav() {
+        const nav = $('#quiz-nav'); const isFirst = currentQuestion === 0; const isLast = currentQuestion === quizData.questions.length - 1; const hasAnswer = answers[currentQuestion] !== -1; let html = '';
+        if (!isFirst) html += `<button class="btn-nav btn-prev" id="btn-prev"><i class="fas fa-arrow-left" style="margin-right:6px;font-size:12px;"></i>上一题</button>`;
+        if (isLast) html += `<button class="btn-nav btn-submit" id="btn-submit" ${!hasAnswer ? 'disabled' : ''}><i class="fas fa-chart-bar" style="margin-right:6px;font-size:12px;"></i>查看结果</button>`;
+        else html += `<button class="btn-nav btn-next" id="btn-next" ${!hasAnswer ? 'disabled' : ''}>下一题<i class="fas fa-arrow-right" style="margin-left:6px;font-size:12px;"></i></button>`;
+        nav.innerHTML = html;
+        const prevBtn = $('#btn-prev'); const nextBtn = $('#btn-next'); const submitBtn = $('#btn-submit');
+        if (prevBtn) prevBtn.addEventListener('click', () => goQuestion(currentQuestion - 1));
+        if (nextBtn) nextBtn.addEventListener('click', () => goQuestion(currentQuestion + 1));
+        if (submitBtn) submitBtn.addEventListener('click', () => showResult());
+    }
+
+    function selectOption(idx) {
+        if (autoNextTimer) clearTimeout(autoNextTimer); answers[currentQuestion] = idx;
+        $$('#options-list .option-btn').forEach((btn, i) => { btn.classList.toggle('selected', i === idx); btn.setAttribute('aria-checked', i === idx); });
+        const nextBtn = $('#btn-next'); const submitBtn = $('#btn-submit');
+        if (nextBtn) nextBtn.disabled = false; if (submitBtn) submitBtn.disabled = false;
+        const isLast = currentQuestion === quizData.questions.length - 1;
+        autoNextTimer = setTimeout(() => { if (isLast) showResult(); else goQuestion(currentQuestion + 1); }, 650);
+    }
+
+    function goQuestion(idx) { if (autoNextTimer) clearTimeout(autoNextTimer); if (idx < 0 || idx >= quizData.questions.length) return; currentQuestion = idx; renderQuiz(); }
+
+    function showResult() {
+        if (autoNextTimer) clearTimeout(autoNextTimer); let totalScore = 0;
+        answers.forEach((ansIdx, qIdx) => { if (ansIdx >= 0) totalScore += quizData.questions[qIdx].options[ansIdx].score; });
+        let result = quizData.results[0];
+        for (const r of quizData.results) { if (totalScore >= r.minScore && totalScore <= r.maxScore) { result = r; break; } }
+        $('#result-type').textContent = result.title;
+        $('#result-score-line').innerHTML = `你的得分 <span>${totalScore}</span> / ${quizData.questions.length * 4}`;
+        $('#result-card-title').textContent = result.subtitle;
+        $('#result-desc').textContent = result.description;
+        const rImg = $('#result-image');
+        if (result.image) { rImg.src = result.image; rImg.style.display = 'block'; } else { rImg.style.display = 'none'; }
+        const rBg = $('#result-bg');
+        if (result.image) { rBg.style.backgroundImage = `url(${result.image})`; } else { rBg.style.backgroundImage = 'none'; }
+        const traitsEl = $('#result-traits');
+        if (result.traits && result.traits.length) { traitsEl.innerHTML = result.traits.map(t => `<span class="trait-tag">${t}</span>`).join(''); } else { traitsEl.innerHTML = ''; }
+        
+        const resultView = $('#result-view');
+        const animatedEls = resultView.querySelectorAll('.result-label, .result-type, .result-score-line, .result-image, .result-card, .btn-restart');
+        animatedEls.forEach(el => { el.style.animation = 'none'; el.offsetHeight; el.style.animation = ''; });
+        showView('result');
+    }
+
+    function toggleEditPanel() { editOpen = !editOpen; $('#edit-panel').classList.toggle('open', editOpen); $('#edit-toggle').classList.toggle('active', editOpen); if (editOpen) renderEditContent(); }
+    function switchEditTab(tab) { editTab = tab; $$('.edit-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab)); renderEditContent(); }
+
+    function renderEditContent() {
+        const el = $('#edit-content');
+        if (editTab === 'cover') {
+            el.innerHTML = `
+                <div class="form-group"><label class="form-label">封面标题</label><input class="form-input" id="edit-cover-title" value="${escHtml(quizData.cover.title)}"></div>
+                <div class="form-group"><label class="form-label">封面副标题</label><textarea class="form-input" id="edit-cover-subtitle">${escHtml(quizData.cover.subtitle)}</textarea></div>
+                <div class="form-group"><label class="form-label">封面背景图</label><label class="form-file-label${quizData.cover.bgImage ? ' has-image' : ''}" id="cover-bg-label"><i class="fas fa-cloud-upload-alt"></i>${quizData.cover.bgImage ? '已上传，点击更换' : '点击上传图片'}</label><input type="file" accept="image/*" class="form-file-input" id="cover-bg-input">${quizData.cover.bgImage ? `<img class="image-preview" src="${quizData.cover.bgImage}" alt="预览">` : ''}</div>
+                <hr class="divider">
+                <div class="form-group"><label class="form-label">答题页背景图</label><label class="form-file-label${quizData.quizBgImage ? ' has-image' : ''}" id="quiz-bg-label"><i class="fas fa-cloud-upload-alt"></i>${quizData.quizBgImage ? '已上传，点击更换' : '点击上传图片'}</label><input type="file" accept="image/*" class="form-file-input" id="quiz-bg-input">${quizData.quizBgImage ? `<img class="image-preview" src="${quizData.quizBgImage}" alt="预览">` : ''}</div>`;
+            $('#edit-cover-title').addEventListener('input', (e) => { quizData.cover.title = e.target.value; renderCover(); });
+            $('#edit-cover-subtitle').addEventListener('input', (e) => { quizData.cover.subtitle = e.target.value; renderCover(); });
+            $('#cover-bg-input').addEventListener('change', (e) => handleUpload(e, (url) => { quizData.cover.bgImage = url; renderCover(); renderEditContent(); showToast('封面背景图已更新'); }));
+            $('#quiz-bg-input').addEventListener('change', (e) => handleUpload(e, (url) => { quizData.quizBgImage = url; if (currentView === 'quiz') renderQuiz(); renderEditContent(); showToast('答题背景图已更新'); }));
+        } else if (editTab === 'questions') {
+            el.innerHTML = `
+                <div class="form-group"><label class="form-label">选择题目</label><select class="form-select" id="edit-q-select">${quizData.questions.map((q, i) => `<option value="${i}" ${i === editQuestionIdx ? 'selected' : ''}>第 ${i + 1} 题</option>`).join('')}</select></div>
+                <hr class="divider">${renderQuestionEditForm(editQuestionIdx)}`;
+            $('#edit-q-select').addEventListener('change', (e) => { editQuestionIdx = parseInt(e.target.value); renderEditContent(); });
+            bindQuestionEditEvents(editQuestionIdx);
+        } else if (editTab === 'results') {
+            el.innerHTML = `
+                <div class="form-group"><label class="form-label">选择结果类型</label><select class="form-select" id="edit-r-select">${quizData.results.map((r, i) => `<option value="${i}" ${i === editResultIdx ? 'selected' : ''}>${r.title} (${r.minScore}-${r.maxScore}分)</option>`).join('')}</select></div>
+                <hr class="divider">${renderResultEditForm(editResultIdx)}`;
+            $('#edit-r-select').addEventListener('change', (e) => { editResultIdx = parseInt(e.target.value); renderEditContent(); });
+            bindResultEditEvents(editResultIdx);
+        }
+    }
+
+    function renderQuestionEditForm(idx) {
+        const q = quizData.questions[idx];
+        return `<div class="form-group"><label class="form-label">题目文字</label><textarea class="form-input" id="edit-q-text">${escHtml(q.text)}</textarea></div>
+        <div class="form-group"><label class="form-label">题目配图</label><label class="form-file-label${q.image ? ' has-image' : ''}" id="q-img-label"><i class="fas fa-image"></i>${q.image ? '已上传，点击更换' : '点击上传图片'}</label><input type="file" accept="image/*" class="form-file-input" id="q-img-input">${q.image ? `<img class="image-preview" src="${q.image}" alt="预览">` : ''}</div>
+        <hr class="divider"><label class="form-label" style="margin-bottom:12px;">选项设置</label>
+        ${q.options.map((opt, i) => `<div style="margin-bottom:14px;"><div class="option-edit-label"><span class="letter">${letters[i]}</span> 选项 ${letters[i]}</div><div class="option-edit-row"><input class="form-input" id="edit-opt-text-${i}" value="${escHtml(opt.text)}" placeholder="选项文字"><input class="form-input" id="edit-opt-score-${i}" type="number" min="0" max="99" value="${opt.score}" placeholder="分值"></div></div>`).join('')}`;
+    }
+
+    function bindQuestionEditEvents(idx) {
+        const q = quizData.questions[idx];
+        const textEl = $(`#edit-q-text`);
+        if (textEl) textEl.addEventListener('input', (e) => { q.text = e.target.value; if (currentView === 'quiz' && currentQuestion === idx) $('#question-text').textContent = q.text; });
+        const imgInput = $(`#q-img-input`);
+        if (imgInput) imgInput.addEventListener('change', (e) => handleUpload(e, (url) => { q.image = url; if (currentView === 'quiz' && currentQuestion === idx) renderQuiz(); renderEditContent(); showToast('题目配图已更新'); }));
+        q.options.forEach((opt, i) => {
+            const textInput = $(`#edit-opt-text-${i}`); const scoreInput = $(`#edit-opt-score-${i}`);
+            if (textInput) textInput.addEventListener('input', (e) => { opt.text = e.target.value; if (currentView === 'quiz' && currentQuestion === idx) { const btns = $$('#options-list .option-btn'); if (btns[i]) btns[i].querySelector('.option-text').textContent = opt.text; } });
+            if (scoreInput) scoreInput.addEventListener('input', (e) => { opt.score = parseInt(e.target.value) || 0; });
+        });
+    }
+
+    function renderResultEditForm(idx) {
+        const r = quizData.results[idx];
+        return `<div class="form-group"><label class="form-label">结果标题</label><input class="form-input" id="edit-r-title" value="${escHtml(r.title)}"></div>
+        <div class="form-group"><label class="form-label">结果副标题</label><input class="form-input" id="edit-r-subtitle" value="${escHtml(r.subtitle)}"></div>
+        <div class="form-group"><label class="form-label">分数范围</label><div class="score-range-row"><input class="form-input" id="edit-r-min" type="number" min="0" value="${r.minScore}" placeholder="最低分"><input class="form-input" id="edit-r-max" type="number" min="0" value="${r.maxScore}" placeholder="最高分"></div></div>
+        <div class="form-group"><label class="form-label">结果描述</label><textarea class="form-input" id="edit-r-desc" style="min-height:100px;">${escHtml(r.description)}</textarea></div>
+        <div class="form-group"><label class="form-label">特质标签（逗号分隔）</label><input class="form-input" id="edit-r-traits" value="${r.traits ? r.traits.join('，') : ''}"></div>
+        <div class="form-group"><label class="form-label">结果图片</label><label class="form-file-label${r.image ? ' has-image' : ''}" id="r-img-label"><i class="fas fa-trophy"></i>${r.image ? '已上传，点击更换' : '点击上传图片'}</label><input type="file" accept="image/*" class="form-file-input" id="r-img-input">${r.image ? `<img class="image-preview" src="${r.image}" alt="预览">` : ''}</div>`;
+    }
+
+    function bindResultEditEvents(idx) {
+        const r = quizData.results[idx];
+        const titleEl = $(`#edit-r-title`); if (titleEl) titleEl.addEventListener('input', (e) => { r.title = e.target.value; });
+        const subtitleEl = $(`#edit-r-subtitle`); if (subtitleEl) subtitleEl.addEventListener('input', (e) => { r.subtitle = e.target.value; });
+        const minEl = $(`#edit-r-min`); if (minEl) minEl.addEventListener('input', (e) => { r.minScore = parseInt(e.target.value) || 0; });
+        const maxEl = $(`#edit-r-max`); if (maxEl) maxEl.addEventListener('input', (e) => { r.maxScore = parseInt(e.target.value) || 0; });
+        const descEl = $(`#edit-r-desc`); if (descEl) descEl.addEventListener('input', (e) => { r.description = e.target.value; });
+        const traitsEl = $(`#edit-r-traits`); if (traitsEl) traitsEl.addEventListener('input', (e) => { r.traits = e.target.value.split(/[,，]/).map(s => s.trim()).filter(Boolean); });
+        const imgInput = $(`#r-img-input`); if (imgInput) imgInput.addEventListener('change', (e) => handleUpload(e, (url) => { r.image = url; renderEditContent(); showToast('结果图片已更新'); }));
+    }
+
+    function handleUpload(e, callback) {
+        const file = e.target.files[0]; if (!file) return;
+        if (!file.type.startsWith('image/')) { showToast('请上传图片文件'); return; }
+        const reader = new FileReader(); reader.onload = (evt) => callback(evt.target.result); reader.readAsDataURL(file);
+    }
+
+    function escHtml(str) { const div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
+
+    /**
+     * 核心功能：生成包含当前数据的完整HTML字符串
+     */
+    function generateFullHtml() {
+        let fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+        const dataStart = '/* <!-- QUIZ_DATA_START --> */';
+        const dataEnd = '/* <!-- QUIZ_DATA_END --> */';
+        const startIdx = fullHtml.indexOf(dataStart);
+        const endIdx = fullHtml.indexOf(dataEnd) + dataEnd.length;
+        
+        if (startIdx !== -1 && endIdx !== -1) {
+            const newDataBlock = dataStart + '\n    const quizData = ' + JSON.stringify(quizData, null, 4) + ';\n    ' + dataEnd;
+            fullHtml = fullHtml.substring(0, startIdx) + newDataBlock + fullHtml.substring(endIdx);
+        }
+        return fullHtml;
+    }
+
+    /**
+     * 保存为HTML文件
+     */
+    function saveAsHtml() {
+        const fullHtml = generateFullHtml();
+        const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '灵魂原型测试.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('文件已开始下载！');
+    }
+
+    /**
+     * 生成网页链接 (Data URI)
+     */
+    function generateLink() {
+        const fullHtml = generateFullHtml();
+        // 处理中文编码
+        const base64Html = btoa(unescape(encodeURIComponent(fullHtml)));
+        const dataUri = 'data:text/html;base64,' + base64Html;
+        
+        $('#link-text').textContent = dataUri;
+        $('#link-modal').classList.add('show');
+    }
+
+    function closeModal() { $('#link-modal').classList.remove('show'); }
+
+    function copyLink() {
+        const linkText = $('#link-text').textContent;
+        navigator.clipboard.writeText(linkText).then(() => {
+            showToast('链接已复制到剪贴板');
+            closeModal();
+        }).catch(err => {
+            // 降级方案
+            const textarea = document.createElement('textarea');
+            textarea.value = linkText;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showToast('链接已复制到剪贴板');
+            closeModal();
+        });
+    }
+
+    function init() {
+        initParticles();
+        renderCover();
+        
+        $('#btn-start').addEventListener('click', () => { currentQuestion = 0; answers = new Array(quizData.questions.length).fill(-1); renderQuiz(); showView('quiz'); });
+        $('#btn-restart').addEventListener('click', () => { currentQuestion = 0; answers = new Array(quizData.questions.length).fill(-1); renderCover(); showView('cover'); });
+        
+        $('#edit-toggle').addEventListener('click', toggleEditPanel);
+        $('#edit-close').addEventListener('click', toggleEditPanel);
+        $$('.edit-tab').forEach(tab => { tab.addEventListener('click', () => switchEditTab(tab.dataset.tab)); });
+        
+        // 绑定底部操作按钮
+        $('#btn-save-html').addEventListener('click', saveAsHtml);
+        $('#btn-gen-link').addEventListener('click', generateLink);
+        $('#btn-modal-close').addEventListener('click', closeModal);
+        $('#btn-copy-link').addEventListener('click', copyLink);
+        // 点击遮罩层关闭弹窗
+        $('#link-modal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
+        
+        document.addEventListener('keydown', (e) => {
+            if (currentView === 'quiz') {
+                if (e.key === 'ArrowLeft' && currentQuestion > 0) goQuestion(currentQuestion - 1);
+                else if (e.key === 'ArrowRight' && answers[currentQuestion] !== -1 && currentQuestion < quizData.questions.length - 1) goQuestion(currentQuestion + 1);
+                else if (e.key >= '1' && e.key <= '4') selectOption(parseInt(e.key) - 1);
+            }
+            if (e.key === 'Escape' && editOpen) toggleEditPanel();
+        });
+    }
+    
+    document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
